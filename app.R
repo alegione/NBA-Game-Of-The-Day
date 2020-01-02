@@ -105,7 +105,7 @@ ui <- fluidPage(
    sidebarLayout(
       sidebarPanel(width = 2, 
          dateInput(inputId = "Date",
-                   format = "mm/dd/yyyy",
+                   format = "mm-dd-yyyy",
                    label = "Game Day",
                    min = "2019-10-22",
                    max = format(Sys.Date(), "%Y-%m-%d"),
@@ -124,12 +124,12 @@ ui <- fluidPage(
 )
 
 # Define server logic required to draw a histogram
-server <- function(input, output) {
-   output$GameResults <- DT::renderDataTable({
-     input$goButton
+server <- function(input, output, session) {
+   observeEvent(input$goButton, {
+     output$GameResults <- DT::renderDataTable({
      get_rank(input$Date)
      })
-  
+   })  
 }
 
 # Run the application 
