@@ -33,7 +33,7 @@ get_rank <- function(date_input) {
   GameDate <- date_input
   
   buildurl <- paste0(baseurl, "DayOffset=", dayoffset, "&LeagueID=", LeagueID, "&gameDate=", GameDate)
-  
+  print(buildurl)
   dat <- fromJSON(txt = buildurl, flatten = TRUE)
   
   #gameday information in dat$resultSets$rowSet[1]
@@ -91,7 +91,7 @@ get_rank <- function(date_input) {
   fullScores$Away <- paste(fullScores$TEAM_CITY_NAME_a, fullScores$TEAM_NAME_a)
   
   GameRank <- fullScores %>% select(Away, Home, League_Pass_Link, sumWinPerc, GameScore, AdjGameScore) %>% arrange(desc(GameScore))
-  
+  print(GameRank)
   GameRank %>% select(Away, Home, League_Pass_Link)
 }
 
@@ -105,7 +105,7 @@ ui <- fluidPage(
    sidebarLayout(
       sidebarPanel(width = 2, 
          dateInput(inputId = "Date",
-                   format = "mm-dd-yyyy",
+                   format = "mm/dd/yyyy",
                    label = "Game Day",
                    min = "2019-10-22",
                    max = format(Sys.Date(), "%Y-%m-%d"),
