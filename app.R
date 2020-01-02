@@ -15,94 +15,102 @@ library(jsonlite)
 library(dplyr)
 library(DT)
 
-val_OT <- 3
-val_finalmargin <- 10
-val_topscorer <- 0.1
-val_teampoints <- 10
 
-
-baseurl <- "https://stats.nba.com/stats/scoreboardV2?"
-
-dayoffset <- "-1"
-
-LeagueID <- "00"
-
-GameDate <- format(Sys.Date(), "%m/%d/%Y")
-
-buildurl <- paste0(baseurl, "DayOffset=", dayoffset, "&LeagueID=", LeagueID, "&gameDate=", GameDate)
-
-dat <- fromJSON(txt = buildurl, flatten = TRUE)
-
-#gameday information in dat$resultSets$rowSet[1]
-
-
-gameday <- as_tibble(setNames(object = as.data.frame(dat$resultSets$rowSet[1], stringsAsFactors = FALSE), nm = unlist(dat$resultSets$headers[1])))
-boxscores <- as_tibble(setNames(object = as.data.frame(dat$resultSets$rowSet[2], stringsAsFactors = FALSE), nm = unlist(dat$resultSets$headers[2])))
-eastStandings <- as_tibble(setNames(object = as.data.frame(dat$resultSets$rowSet[5], stringsAsFactors = FALSE), nm = unlist(dat$resultSets$headers[5])))
-westStandings <- as_tibble(setNames(object = as.data.frame(dat$resultSets$rowSet[6], stringsAsFactors = FALSE), nm = unlist(dat$resultSets$headers[6])))
-statLeaders <- as_tibble(setNames(object = as.data.frame(dat$resultSets$rowSet[8], stringsAsFactors = FALSE), nm = unlist(dat$resultSets$headers[8])))
-
-gameday <- gameday %>% select(GAME_ID, GAMECODE, HOME_TEAM_ID, VISITOR_TEAM_ID)
-
-leagueStandings <- bind_rows(eastStandings, westStandings) %>% arrange(desc(W_PCT)) %>% select(TEAM_ID, TEAM, G, W, L, W_PCT)
-
-boxscores <- boxscores %>% rename(TeamPTS = "PTS", TeamREB = REB, TeamAST = AST)
-
-fullScores <- left_join(boxscores, statLeaders) %>% select(-c(TEAM_CITY, TEAM_NICKNAME))
-fullScores <- leagueStandings %>% select(TEAM_ID, W_PCT) %>% right_join(fullScores)
-
-homeTeamScores <- fullScores %>% filter(TEAM_ID %in% gameday$HOME_TEAM_ID)
-awayTeamScores <- fullScores %>% filter(TEAM_ID %in% gameday$VISITOR_TEAM_ID)
-
-fullScores <- left_join(x = homeTeamScores, y = awayTeamScores, by = "GAME_ID", suffix = c("_h","_a")) %>%
-  select(-c(GAME_DATE_EST_a, GAME_SEQUENCE_a))
-
-overtime_home_df <- fullScores %>% select(starts_with("PTS_OT")) %>% select(ends_with("_h"))
-
-overtime_away_df <- fullScores %>% select(starts_with("PTS_OT")) %>% select(ends_with("_a"))
-
-fullScores$OT_PTS_h <- rowSums(mutate_all(overtime_home_df, function(x) as.numeric(as.character(x))))
-fullScores$OT_PTS_a <- rowSums(mutate_all(overtime_away_df, function(x) as.numeric(as.character(x))))
-
-fullScores$OT_tot <- apply(X = overtime_home_df, MARGIN = 1, FUN = function(i) sum(i > 0))
-
-fullScores <- fullScores %>% select(-(starts_with("PTS_OT")))
-
-fullScores <- gameday %>% select(c(GAME_ID, GAMECODE)) %>% right_join(y = fullScores)
-
-fullScores$PlayerPTS_leader <- mutate_all(select(fullScores, c(PTS_h, PTS_a)), function(x) as.integer(x)) %>% apply(1, max)
-fullScores$TeamPTS_leader <- mutate_all(select(fullScores, c(TeamPTS_h,TeamPTS_a)), function(x) as.integer(x)) %>% apply(1, max)
-
-fullScores$finalMargin <- abs(as.numeric(fullScores$TeamPTS_h) - as.numeric(fullScores$TeamPTS_a))
-fullScores$sumWinPerc <- as.numeric(fullScores$W_PCT_h) + as.numeric(fullScores$W_PCT_a)
-
-fullScores$link <- fullScores %>% select(GAMECODE) %>% apply(1, FUN = function(i) paste0("https://watch.nba.com/game/", i))
-
-fullScores$GameScore <- (as.numeric(fullScores$OT_tot) * 3) + (val_finalmargin - as.numeric(fullScores$finalMargin)) + (as.numeric(fullScores$PlayerPTS_leader) * val_topscorer) + ((as.numeric(fullScores$TeamPTS_leader) - 100) / val_teampoints)
-
-fullScores$GameScorePosNeg <- if_else(condition = fullScores$GameScore < 0, -1, 1)
-
-fullScores$AdjGameScore <- fullScores$GameScore + (((fullScores$GameScore * fullScores$sumWinPerc) - fullScores$GameScore) * fullScores$GameScorePosNeg)
-
-GameRank <- fullScores %>% select(TEAM_CITY_NAME_a, TEAM_CITY_NAME_h, link, sumWinPerc, GameScore, AdjGameScore) %>% arrange(desc(GameScore))
-
+get_rank <- function(date_input) {
+  val_OT <- 3
+  val_finalmargin <- 10
+  val_topscorer <- 0.1
+  val_teampoints <- 10
+  
+  
+  baseurl <- "https://stats.nba.com/stats/scoreboardV2?"
+  
+  dayoffset <- "0"
+  
+  LeagueID <- "00"
+  
+  GameDate <- date_input
+  
+  buildurl <- paste0(baseurl, "DayOffset=", dayoffset, "&LeagueID=", LeagueID, "&gameDate=", GameDate)
+  
+  dat <- fromJSON(txt = buildurl, flatten = TRUE)
+  
+  #gameday information in dat$resultSets$rowSet[1]
+  
+  
+  gameday <- as_tibble(setNames(object = as.data.frame(dat$resultSets$rowSet[1], stringsAsFactors = FALSE), nm = unlist(dat$resultSets$headers[1])))
+  boxscores <- as_tibble(setNames(object = as.data.frame(dat$resultSets$rowSet[2], stringsAsFactors = FALSE), nm = unlist(dat$resultSets$headers[2])))
+  eastStandings <- as_tibble(setNames(object = as.data.frame(dat$resultSets$rowSet[5], stringsAsFactors = FALSE), nm = unlist(dat$resultSets$headers[5])))
+  westStandings <- as_tibble(setNames(object = as.data.frame(dat$resultSets$rowSet[6], stringsAsFactors = FALSE), nm = unlist(dat$resultSets$headers[6])))
+  statLeaders <- as_tibble(setNames(object = as.data.frame(dat$resultSets$rowSet[8], stringsAsFactors = FALSE), nm = unlist(dat$resultSets$headers[8])))
+  
+  gameday <- gameday %>% select(GAME_ID, GAMECODE, HOME_TEAM_ID, VISITOR_TEAM_ID)
+  
+  leagueStandings <- bind_rows(eastStandings, westStandings) %>% arrange(desc(W_PCT)) %>% select(TEAM_ID, TEAM, G, W, L, W_PCT)
+  
+  boxscores <- boxscores %>% rename(TeamPTS = "PTS", TeamREB = REB, TeamAST = AST)
+  
+  fullScores <- left_join(boxscores, statLeaders) %>% select(-c(TEAM_CITY, TEAM_NICKNAME))
+  fullScores <- leagueStandings %>% select(TEAM_ID, W_PCT) %>% right_join(fullScores)
+  
+  homeTeamScores <- fullScores %>% filter(TEAM_ID %in% gameday$HOME_TEAM_ID)
+  awayTeamScores <- fullScores %>% filter(TEAM_ID %in% gameday$VISITOR_TEAM_ID)
+  
+  fullScores <- left_join(x = homeTeamScores, y = awayTeamScores, by = "GAME_ID", suffix = c("_h","_a")) %>%
+    select(-c(GAME_DATE_EST_a, GAME_SEQUENCE_a))
+  
+  overtime_home_df <- fullScores %>% select(starts_with("PTS_OT")) %>% select(ends_with("_h"))
+  
+  overtime_away_df <- fullScores %>% select(starts_with("PTS_OT")) %>% select(ends_with("_a"))
+  
+  fullScores$OT_PTS_h <- rowSums(mutate_all(overtime_home_df, function(x) as.numeric(as.character(x))))
+  fullScores$OT_PTS_a <- rowSums(mutate_all(overtime_away_df, function(x) as.numeric(as.character(x))))
+  
+  fullScores$OT_tot <- apply(X = overtime_home_df, MARGIN = 1, FUN = function(i) sum(i > 0))
+  
+  fullScores <- fullScores %>% select(-(starts_with("PTS_OT")))
+  
+  fullScores <- gameday %>% select(c(GAME_ID, GAMECODE)) %>% right_join(y = fullScores)
+  
+  fullScores$PlayerPTS_leader <- mutate_all(select(fullScores, c(PTS_h, PTS_a)), function(x) as.integer(x)) %>% apply(1, max)
+  fullScores$TeamPTS_leader <- mutate_all(select(fullScores, c(TeamPTS_h,TeamPTS_a)), function(x) as.integer(x)) %>% apply(1, max)
+  
+  fullScores$finalMargin <- abs(as.numeric(fullScores$TeamPTS_h) - as.numeric(fullScores$TeamPTS_a))
+  fullScores$sumWinPerc <- as.numeric(fullScores$W_PCT_h) + as.numeric(fullScores$W_PCT_a)
+  
+  fullScores$League_Pass_Link <- fullScores %>% select(GAMECODE) %>% apply(1, FUN = function(i) paste0("https://watch.nba.com/game/", i))
+  
+  fullScores$GameScore <- (as.numeric(fullScores$OT_tot) * 3) + (val_finalmargin - as.numeric(fullScores$finalMargin)) + (as.numeric(fullScores$PlayerPTS_leader) * val_topscorer) + ((as.numeric(fullScores$TeamPTS_leader) - 100) / val_teampoints)
+  
+  fullScores$GameScorePosNeg <- if_else(condition = fullScores$GameScore < 0, -1, 1)
+  
+  fullScores$AdjGameScore <- fullScores$GameScore + (((fullScores$GameScore * fullScores$sumWinPerc) - fullScores$GameScore) * fullScores$GameScorePosNeg)
+  
+  fullScores$Home <- paste(fullScores$TEAM_CITY_NAME_h, fullScores$TEAM_NAME_h)
+  fullScores$Away <- paste(fullScores$TEAM_CITY_NAME_a, fullScores$TEAM_NAME_a)
+  
+  GameRank <- fullScores %>% select(Away, Home, League_Pass_Link, sumWinPerc, GameScore, AdjGameScore) %>% arrange(desc(GameScore))
+  
+  GameRank %>% select(Away, Home, League_Pass_Link)
+}
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
    
    # Application title
-   titlePanel("Old Faithful Geyser Data"),
+   titlePanel("NBA Game of the Day"),
    
    # Sidebar with a slider input for number of bins 
    sidebarLayout(
-      sidebarPanel(
+      sidebarPanel(width = 2, 
          dateInput(inputId = "Date",
+                   format = "mm-dd-yyyy",
                    label = "Game Day",
                    min = "2019-10-22",
                    max = format(Sys.Date(), "%Y-%m-%d"),
                    datesdisabled = c("2019-12-25","2019-11-26")
                    ),
-         submitButton(text = "Get Game of the day!")
+         actionButton(inputId = "goButton", label = "Get Game of the day!")
          
       ),
       
@@ -117,7 +125,8 @@ ui <- fluidPage(
 # Define server logic required to draw a histogram
 server <- function(input, output) {
    output$GameResults <- DT::renderDataTable({
-     GameRank %>% select(TEAM_CITY_NAME_a, TEAM_CITY_NAME_h, link)
+     input$goButton
+     get_rank(input$Date)
      })
   
 }
