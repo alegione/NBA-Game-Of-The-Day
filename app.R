@@ -14,6 +14,7 @@ library(shiny)
 library(jsonlite)
 library(dplyr)
 library(DT)
+library(curl)
 
 
 get_rank <- function(date_input) {
