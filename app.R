@@ -46,7 +46,7 @@ get_rank <- function(date_input) {
   
   LeagueID <- "00"
   
-  GameDate <- date_input
+  GameDate <- format.Date(date_input, "%Y%%2F%m%%2F%d")
   
   buildurl <- paste0(baseurl, "DayOffset=", dayoffset, "&LeagueID=", LeagueID, "&gameDate=", GameDate)
   print(buildurl)
