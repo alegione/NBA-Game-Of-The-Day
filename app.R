@@ -52,7 +52,7 @@ get_rank <- function(date_input) {
   print(buildurl)
   
   print("Testing URL")
-  url_test <- url.exists(buildurl)
+  (url_test <- url.exists(buildurl))
   print(url_test)
   
   gethttp <- GET(buildurl, add_headers(request_headers))
@@ -150,6 +150,7 @@ ui <- fluidPage(
 server <- function(input, output, session) {
    observeEvent(input$goButton, {
      output$GameResults <- DT::renderDataTable({
+       print("RunningGetRank")
        get_rank(input$Date)
      })
    })  
