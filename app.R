@@ -15,9 +15,25 @@ library(jsonlite)
 library(dplyr)
 library(DT)
 library(curl)
+library(RCurl)
+library(httr)
 
+request_headers <- c(
+  "accept-encoding" = "gzip, deflate, sdch",
+  "accept-language" = "en-US,en;q=0.8",
+  "cache-control" = "no-cache",
+  "connection" = "keep-alive",
+  "host" = "stats.nba.com",
+  "pragma" = "no-cache",
+  "referer" = "https://www.nba.com/",
+  "upgrade-insecure-requests" = "1",
+  "user-agent" = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_2) AppleWebKit/601.3.9 (KHTML, like Gecko) Version/9.0.2 Safari/601.3.9"
+)
 
 get_rank <- function(date_input) {
+  
+  
+  
   val_OT <- 3
   val_finalmargin <- 10
   val_topscorer <- 0.1
@@ -34,7 +50,14 @@ get_rank <- function(date_input) {
   
   buildurl <- paste0(baseurl, "DayOffset=", dayoffset, "&LeagueID=", LeagueID, "&gameDate=", GameDate)
   print(buildurl)
-  dat <- fromJSON(txt = buildurl, flatten = TRUE)
+  
+  print("Testing URL")
+  url_test <- url.exists(buildurl)
+  print(url_test)
+  
+  gethttp <- GET(buildurl, add_headers(request_headers))
+  
+  dat <- fromJSON(txt = content(gethttp, as = "text"), flatten = TRUE)
   
   #gameday information in dat$resultSets$rowSet[1]
   
@@ -105,7 +128,7 @@ ui <- fluidPage(
    sidebarLayout(
       sidebarPanel(width = 2, 
          dateInput(inputId = "Date",
-                   format = "mm-dd-yyyy",
+                   format = "yyyy-mm-dd",
                    label = "Game Day",
                    min = "2019-10-22",
                    max = format(Sys.Date(), "%Y-%m-%d"),
@@ -127,7 +150,7 @@ ui <- fluidPage(
 server <- function(input, output, session) {
    observeEvent(input$goButton, {
      output$GameResults <- DT::renderDataTable({
-     get_rank(input$Date)
+       get_rank(input$Date)
      })
    })  
 }
