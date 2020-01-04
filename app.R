@@ -30,16 +30,21 @@ request_headers <- c(
   "user-agent" = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_2) AppleWebKit/601.3.9 (KHTML, like Gecko) Version/9.0.2 Safari/601.3.9"
 )
 
-get_rank <- function(date_input) {
-  
-  
-  
-  val_OT <- 3
-  val_finalmargin <- 10
-  val_topscorer <- 0.1
-  val_teampoints <- 10
-  
-  
+get_rank <- function(date_input,
+                     winadj,
+                     marginadj,
+                     val_OT,
+                     val_finalmargin, 
+                     val_topscorer, 
+                     val_teampoints,
+                     ShowScores) {
+  if (is.null(winadj)) {
+    winadj <- FALSE
+  }
+  if (is.null(marginadj)) {
+    marginadj <- FALSE
+  }
+
   baseurl <- "https://stats.nba.com/stats/scoreboardV2?"
   
   dayoffset <- "0"
@@ -62,7 +67,9 @@ get_rank <- function(date_input) {
   #gameday information in dat$resultSets$rowSet[1]
   
   
-  gameday <- as_tibble(setNames(object = as.data.frame(dat$resultSets$rowSet[1], stringsAsFactors = FALSE), nm = unlist(dat$resultSets$headers[1])))
+  gameday <- as_tibble(setNames(object = as.data.frame(dat$resultSets$rowSet[1],
+                                                       stringsAsFactors = FALSE),
+                                nm = unlist(dat$resultSets$headers[1])))
   boxscores <- as_tibble(setNames(object = as.data.frame(dat$resultSets$rowSet[2], stringsAsFactors = FALSE), nm = unlist(dat$resultSets$headers[2])))
   eastStandings <- as_tibble(setNames(object = as.data.frame(dat$resultSets$rowSet[5], stringsAsFactors = FALSE), nm = unlist(dat$resultSets$headers[5])))
   westStandings <- as_tibble(setNames(object = as.data.frame(dat$resultSets$rowSet[6], stringsAsFactors = FALSE), nm = unlist(dat$resultSets$headers[6])))
@@ -102,9 +109,13 @@ get_rank <- function(date_input) {
   fullScores$finalMargin <- abs(as.numeric(fullScores$TeamPTS_h) - as.numeric(fullScores$TeamPTS_a))
   fullScores$sumWinPerc <- as.numeric(fullScores$W_PCT_h) + as.numeric(fullScores$W_PCT_a)
   
-  fullScores$League_Pass_Link <- fullScores %>% select(GAMECODE) %>% apply(1, FUN = function(i) paste0("https://watch.nba.com/game/", i))
+  fullScores$League_Pass_Link <- fullScores %>% select(GAMECODE) %>% apply(1, FUN = function(i) paste0("<a href='https://watch.nba.com/game/", i, "'>", i, "</a>"))
   
-  fullScores$GameScore <- (as.numeric(fullScores$OT_tot) * 3) + (val_finalmargin - as.numeric(fullScores$finalMargin)) + (as.numeric(fullScores$PlayerPTS_leader) * val_topscorer) + ((as.numeric(fullScores$TeamPTS_leader) - 100) / val_teampoints)
+  if (marginadj == TRUE) {
+    val_finalmargin <- max(fullScores$finalMargin)
+  }
+  
+  fullScores$GameScore <- (as.numeric(fullScores$OT_tot) * val_OT) + (val_finalmargin - as.numeric(fullScores$finalMargin)) + (as.numeric(fullScores$PlayerPTS_leader) * val_topscorer) + ((as.numeric(fullScores$TeamPTS_leader) - 100) * val_teampoints)
   
   fullScores$GameScorePosNeg <- if_else(condition = fullScores$GameScore < 0, -1, 1)
   
@@ -113,9 +124,29 @@ get_rank <- function(date_input) {
   fullScores$Home <- paste(fullScores$TEAM_CITY_NAME_h, fullScores$TEAM_NAME_h)
   fullScores$Away <- paste(fullScores$TEAM_CITY_NAME_a, fullScores$TEAM_NAME_a)
   
-  GameRank <- fullScores %>% select(Away, Home, League_Pass_Link, sumWinPerc, GameScore, AdjGameScore) %>% arrange(desc(GameScore))
-  print(GameRank)
-  GameRank %>% select(Away, Home, League_Pass_Link)
+  if (winadj == FALSE) {
+    GameRank <- fullScores %>%
+      select(Away, Home, League_Pass_Link, GameScore) %>%
+      mutate(ranking = dense_rank(desc(GameScore)))
+  } else {
+    GameRank <- fullScores %>%
+      select(Away, Home, League_Pass_Link, AdjGameScore) %>%
+      mutate(ranking = dense_rank(desc(AdjGameScore)))
+    GameRank$GameScore <- GameRank$AdjGameScore
+  }
+  
+  # GameRank <- fullScores %>%
+  #   select(Away, Home, League_Pass_Link, sumWinPerc, GameScore, AdjGameScore) %>%
+  #   {ifelse(test = winadj == TRUE, yes = arrange(., desc(AdjGameScore)), no = arrange(., desc(GameScore)))} %>%
+  #   {ifelse(test = winadj == TRUE, yes = mutate(., ranking = dense_rank(desc(GameScore))), no = mutate(., ranking = dense_rank(desc(AdjGameScore))))}
+  print(select(fullScores, Home, Away, GameScore, sumWinPerc, AdjGameScore))
+
+  if (ShowScores == TRUE) { 
+    GameRank %>% select(ranking, Away, Home, GameScore, League_Pass_Link) %>% arrange(ranking)
+  } else {
+    GameRank %>% select(ranking, Away, Home, League_Pass_Link) %>% arrange(ranking)
+  }
+  
 }
 
 # Define UI for application that draws a histogram
@@ -126,7 +157,7 @@ ui <- fluidPage(
    
    # Sidebar with a slider input for number of bins 
    sidebarLayout(
-      sidebarPanel(width = 2, 
+      sidebarPanel(width = 3, 
          dateInput(inputId = "Date",
                    format = "yyyy-mm-dd",
                    label = "Game Day",
@@ -134,7 +165,41 @@ ui <- fluidPage(
                    max = format(Sys.Date(), "%Y-%m-%d"),
                    datesdisabled = c("2019-12-25","2019-11-26")
                    ),
-         actionButton(inputId = "goButton", label = "Get Game of the day!")
+         numericInput(inputId = "val_OT",
+                      label = "Overtime",
+                      value = 3,
+                      min = 0,
+                      max = 100,
+                      step = 1),
+         numericInput(inputId = "val_finalmargin",
+                      label = "Final Margin",
+                      value = 10,
+                      min = 0,
+                      max = 100,
+                      step = 1),
+         numericInput(inputId = "val_topscorer",
+                      label = "Top Player Points",
+                      value = 0.1,
+                      min = 0,
+                      max = 10,
+                      step = 0.1),
+         numericInput(inputId = "val_teampoints",
+                      label = "Top Team Points",
+                      value = 0.1,
+                      min = 0,
+                      max = 10,
+                      step = 0.1),
+         checkboxInput(inputId = "WinPercentageAdj",
+                       label = "Win Percentagee",
+                       value = FALSE),
+         checkboxInput(inputId = "MarginAdj",
+                       label = "Nightly Margins",
+                       value = FALSE),
+         checkboxInput(inputId = "ShowScores",
+                       label = "Show Rank Score",
+                       value = FALSE),
+         actionButton(inputId = "goButton",
+                      label = "Get Game of the day!")
          
       ),
       
@@ -148,11 +213,24 @@ ui <- fluidPage(
 
 # Define server logic required to draw a histogram
 server <- function(input, output, session) {
+  
    observeEvent(input$goButton, {
      output$GameResults <- DT::renderDataTable({
        print("RunningGetRank")
-       get_rank(input$Date)
-     })
+       get_rank(input$Date,
+                input$WinPercentageAdj,
+                input$MarginAdj,
+                input$val_OT,
+                input$val_finalmargin,
+                input$val_topscorer,
+                input$val_teampoints,
+                input$ShowScores
+       )
+     }, escape = FALSE,
+     rownames = FALSE, 
+     options = list(columnDefs = list(list(className = 'dt-center', targets = "_all")))
+     )
+     
    })  
 }
 

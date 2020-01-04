@@ -5,8 +5,9 @@ account: alegione
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 1625248
-bundleId: 2704418
+bundleId: 2706218
 url: https://alegione.shinyapps.io/NBA-Game-Of-The-Day/
-when: 1578059398.09727
+when: 1578141814.44446
 asMultiple: FALSE
 asStatic: FALSE
+ignoredFiles: .RData|LICENSE|README.md
