@@ -183,7 +183,7 @@ ui <- fluidPage(
                       max = 10,
                       step = 0.1),
          checkboxInput(inputId = "WinPercentageAdj",
-                       label = "Win Percentagee",
+                       label = "Win Percentages",
                        value = FALSE),
          checkboxInput(inputId = "MarginAdj",
                        label = "Nightly Margins",
