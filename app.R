@@ -15,7 +15,6 @@ library(jsonlite)
 library(dplyr)
 library(DT)
 library(curl)
-library(RCurl)
 library(httr)
 
 request_headers <- c(
@@ -54,18 +53,12 @@ get_rank <- function(date_input,
   GameDate <- format.Date(date_input, "%Y%%2F%m%%2F%d")
   
   buildurl <- paste0(baseurl, "DayOffset=", dayoffset, "&LeagueID=", LeagueID, "&gameDate=", GameDate)
-  print(buildurl)
-  
-  print("Testing URL")
-  (url_test <- url.exists(buildurl))
-  print(url_test)
-  
+
   gethttp <- GET(buildurl, add_headers(request_headers))
   
   dat <- fromJSON(txt = content(gethttp, as = "text"), flatten = TRUE)
   
   #gameday information in dat$resultSets$rowSet[1]
-  
   
   gameday <- as_tibble(setNames(object = as.data.frame(dat$resultSets$rowSet[1],
                                                        stringsAsFactors = FALSE),
