@@ -13,7 +13,7 @@ You can run 'NBA Game of the Day' on your own computer. Hopefully one day it wil
 
 To run, start by installing the programming language [R](https://cran.rstudio.com/) and the GUI interface [RStudio](https://rstudio.com/products/rstudio/download/)
 
-Then either clone this repo and run the RunShiny.R app
+Then either clone this repo and run the RunShiny.R script
 
 
 
