@@ -9,3 +9,4 @@ if (length(packages_to_install) > 0) {
 library(shiny)
 
 runGitHub("NBA-Game-Of-The-Day", "alegione")
+
