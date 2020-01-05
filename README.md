@@ -25,7 +25,7 @@ cd NBA-Game-Of-The-Day
 Rscript RunShiny.R
 ```
 
-__OR__ run the below commands in the terminal
+__OR__ run the below commands in the Rstudio console
 ```R
 packages = c("shiny", "jsonlite", "dplyr", "DT", "curl", "httr")
 install.packages(packages, repos = "https://cran.rstudio.com/")
