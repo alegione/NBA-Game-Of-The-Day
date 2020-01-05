@@ -43,3 +43,9 @@ There are two final score adjustments possible, which can both be utilised at th
 1) **Win Percentages:** Multiply final *'Game Rank'* score by the sum of the win percentages of the competing teams.
 For example, two teams above .500 will increase the total *'Game Rank'* score
 2) **Nightly Margin:** Rather than using an arbitrary value for the *'Final Margin Value'*, replace it with the maximum margin for the night.
+
+## The Interface
+The basic features of the interface, and how to run the program are pretty simple. Select the date of the games you want to rank, adjust any parameters, and click on the button. A table will generate ranking all the games of the night. If you adjust any of the parametres from this point, a new table will be generated.
+
+
+![](www/ExampleTable.png "Example of program interface")

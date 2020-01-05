@@ -114,8 +114,8 @@ get_rank <- function(date_input,
   
   fullScores$AdjGameScore <- fullScores$GameScore + (((fullScores$GameScore * fullScores$sumWinPerc) - fullScores$GameScore) * fullScores$GameScorePosNeg)
   
-  fullScores$Home <- paste(fullScores$TEAM_CITY_NAME_h, fullScores$TEAM_NAME_h)
-  fullScores$Away <- paste(fullScores$TEAM_CITY_NAME_a, fullScores$TEAM_NAME_a)
+  fullScores$Home <- paste0("<img src='", fullScores$TEAM_ABBREVIATION_h, ".png' height='52'></img>", fullScores$TEAM_CITY_NAME_h, " ", fullScores$TEAM_NAME_h)
+  fullScores$Away <- paste0(fullScores$TEAM_CITY_NAME_a, " ", fullScores$TEAM_NAME_a, "<img src='", fullScores$TEAM_ABBREVIATION_a, ".png' height='52'></img>")
   
   if (winadj == FALSE) {
     GameRank <- fullScores %>%
